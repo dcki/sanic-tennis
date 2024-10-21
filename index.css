@@ -1,0 +1,32 @@
+*, *:before, *:after {
+    box-sizing: border-box;
+}
+html, body {
+    margin: 0;
+    padding: 0;
+}
+.action-body {
+    margin: 20px;
+}
+.game-field {
+    margin: 10px;
+    border: solid 2px black;
+    position: relative;
+    display: flex;
+}
+.paddle {
+    position: absolute;
+    background-color: black;
+    border-radius: 1px;
+}
+.ball {
+    position: absolute;
+    background-color: black;
+    border-radius: 1000px;  /* make circular regardless of width and height */
+}
+.paddle-hint {
+    position: absolute;
+}
+.countdown {
+    margin: auto;
+}

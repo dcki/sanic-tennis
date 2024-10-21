@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+        <!-- Disable favicon, until one is defined. https://stackoverflow.com/a/13416784/724752 -->
+        <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+
+        <!-- TODO: Move to S3 -->
+        <link rel="stylesheet" href="/static/index.css">
+    </head>
+    <body>
+        <div class="action-body">
+            <div class="find-game">
+                <div class="waiting" style="display: none;">Waiting for competitor.</div>
+                <h1 class="game-ended" style="display: none;">Game ended</h1>
+                <div class="error" style="display: none;">An error occurred. You may want to start a new game.</div>
+                <div class="server-disconnected" style="display: none;">Server disconnected.</div>
+                <div class="new-game" style="display: none;">(Refresh the page to start a new game.)</div>
+            </div>
+
+            <div class="game-field" style="display: none;">
+                <div class="paddle paddle-1"></div>
+                <div class="paddle paddle-2"></div>
+                <div class="ball"></div>
+                <div class="paddle-hint"></div>
+                <h1 class="countdown"></h1>
+            </div>
+        </div>
+
+        <!-- TODO: Move to S3 -->
+        <script src="/static/index.js"></script>
+        <script>
+            start();
+        </script>
+    </body>
+</html>
