@@ -6,13 +6,14 @@ html, body {
     padding: 0;
 }
 .action-body {
-    margin: 20px;
+    margin: 10px;
 }
 .game-field {
-    margin: 10px;
+    float: left;
     border: solid 2px black;
     position: relative;
     display: flex;
+    box-sizing: content-box;  /* make height control height of area inside border */
 }
 .paddle {
     position: absolute;
@@ -26,7 +27,28 @@ html, body {
 }
 .paddle-hint {
     position: absolute;
+    color: red;
 }
 .countdown {
     margin: auto;
+    color: red;
+}
+.up-and-down-buttons {
+    user-select: none;
+}
+.up-button, .down-button {
+    background-color: #eee;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.up-button {
+    margin: 10px 10px 0 10px;
+    border-bottom: 1px solid black;
+}
+.down-button {
+    margin: 0 10px 10px 10px;
+}
+.controls-hint {
+    float: left;
 }
