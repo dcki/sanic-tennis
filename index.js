@@ -30,6 +30,15 @@ const RELEVANT_KEY_CODES = [
     KEY_CODE_DOWN,
 ];
 
+// FIX ME
+const PROPORTION_OF_ACTION_BODY_WIDTH_TAKEN_BY_LEVEL = 2/3;
+const ACTION_BODY_WIDTH = window.innerWidth - 20;
+
+// FIX ME: Add comment.
+// FIX ME
+// 20 accounts for .action-body margin.
+const RATIO = ACTION_BODY_WIDTH / LEVEL_WIDTH * PROPORTION_OF_ACTION_BODY_WIDTH_TAKEN_BY_LEVEL;
+
 function start() {
     window.addEventListener('error', ev => {
         // Show error message
@@ -45,6 +54,7 @@ function start() {
     const context = makeContext();
 
     addKeyListeners(context);
+    addMouseListeners(context);
 
     initializeUi();
 
@@ -187,23 +197,71 @@ function addKeyListeners(context) {
     }, false);
 }
 
+function addMouseListeners(context) {
+    document.querySelector('.up-button').addEventListener('mousedown', makeMouseOrTouchHandler('keydown', KEY_CODE_UP, context), false);
+    document.querySelector('.up-button').addEventListener('touchstart', makeMouseOrTouchHandler('keydown', KEY_CODE_UP, context), false);
+    document.querySelector('.up-button').addEventListener('mouseup', makeMouseOrTouchHandler('keyup', KEY_CODE_UP, context), false);
+    document.querySelector('.up-button').addEventListener('touchend', makeMouseOrTouchHandler('keyup', KEY_CODE_UP, context), false);
+
+    document.querySelector('.down-button').addEventListener('mousedown', makeMouseOrTouchHandler('keydown', KEY_CODE_DOWN, context), false);
+    document.querySelector('.down-button').addEventListener('touchstart', makeMouseOrTouchHandler('keydown', KEY_CODE_DOWN, context), false);
+    document.querySelector('.down-button').addEventListener('mouseup', makeMouseOrTouchHandler('keyup', KEY_CODE_DOWN, context), false);
+    document.querySelector('.down-button').addEventListener('touchend', makeMouseOrTouchHandler('keyup', KEY_CODE_DOWN, context), false);
+}
+
+function makeMouseOrTouchHandler(keyEventType, keyCode, context) {
+    return ev => {
+        ev.preventDefault();
+
+        if (!context.started) {
+            return;
+        }
+
+        // HACK: Generate a keydown event from this mousedown/touchstart event.
+        const ev2 = {
+            type: keyEventType,
+            data: {
+                key_code: keyCode,
+            },
+            time: Date.now() - context.startTime,
+            player_id: context.playerId,
+        }
+        context.events.push(ev2);
+        context.unsentEvents.push(ev2);
+        context.state = updateState(context.state, [ev2], context);
+        if (context.state.ended) {
+            return;
+        }
+    };
+}
+
 function initializeUi() {
     const gameEl = document.querySelector('.game-field');
     const paddle1El = document.querySelector('.paddle-1');
     const paddle2El = document.querySelector('.paddle-2');
     const ballEl = document.querySelector('.ball');
+    const upButtonEl = document.querySelector('.up-button');
+    const downButtonEl = document.querySelector('.down-button');
 
-    gameEl.style.width = LEVEL_WIDTH.toString() + 'px';
-    gameEl.style.height = LEVEL_HEIGHT.toString() + 'px';
+    gameEl.style.width = (LEVEL_WIDTH * RATIO).toString() + 'px';
+    gameEl.style.height = (LEVEL_HEIGHT * RATIO).toString() + 'px';
 
-    paddle1El.style.width = PADDLE_WIDTH.toString() + 'px';
-    paddle1El.style.height = PADDLE_HEIGHT.toString() + 'px';
+    paddle1El.style.width = (PADDLE_WIDTH * RATIO).toString() + 'px';
+    paddle1El.style.height = (PADDLE_HEIGHT * RATIO).toString() + 'px';
 
-    paddle2El.style.width = PADDLE_WIDTH.toString() + 'px';
-    paddle2El.style.height = PADDLE_HEIGHT.toString() + 'px';
+    paddle2El.style.width = (PADDLE_WIDTH * RATIO).toString() + 'px';
+    paddle2El.style.height = (PADDLE_HEIGHT * RATIO).toString() + 'px';
 
-    ballEl.style.width = BALL_WIDTH.toString() + 'px';
-    ballEl.style.height = BALL_HEIGHT.toString() + 'px';
+    ballEl.style.width = (BALL_WIDTH * RATIO).toString() + 'px';
+    ballEl.style.height = (BALL_HEIGHT * RATIO).toString() + 'px';
+    
+    // HACK: The 4 accounts for the border around the game
+    // HACK: I don't know why but floor seems to be necessary on desktop browsers.
+    const buttonWidth = Math.floor((1 - PROPORTION_OF_ACTION_BODY_WIDTH_TAKEN_BY_LEVEL) * ACTION_BODY_WIDTH - 4).toString() + 'px';
+    upButtonEl.style.width = buttonWidth;
+    upButtonEl.style.height = buttonWidth;
+    downButtonEl.style.width = buttonWidth;
+    downButtonEl.style.height = buttonWidth;
 }
 
 function handleConnect(context, socket) {
@@ -243,8 +301,12 @@ function handleMessage(socket, message, context) {
             // Show game
             document.querySelector('.game-field').style.display = '';
 
+            // Show controls
+            document.querySelector('.up-and-down-buttons').style.display = '';
+
             const countdownStartTime = Date.now();
             const countdownEl = document.querySelector('.countdown');
+            countdownEl.style.fontSize = (50 * RATIO).toString() + 'px';
             const startingInterval = setInterval(() => {
                 const now = Date.now();
                 if (now < countdownStartTime + 1000) {
@@ -361,15 +423,16 @@ function highlightPlayerPaddle(playerId) {
     const paddleHintEl = document.querySelector('.paddle-hint');
     paddleHintEl.innerText = `You are player ${playerId}`;
     const textWidth = 60;
-    paddleHintEl.style.width = textWidth.toString() + 'px';
+    paddleHintEl.style.width = (textWidth * RATIO).toString() + 'px';
+    paddleHintEl.style.fontSize = (16 * RATIO).toString() + 'px';
     switch (playerId) {
         case 1:
-            paddleHintEl.style.left = (INITIAL_PADDLE_1_X + PADDLE_WIDTH + 10).toString() + 'px';
-            paddleHintEl.style.top = INITIAL_PADDLE_1_Y.toString() + 'px';
+            paddleHintEl.style.left = ((INITIAL_PADDLE_1_X + PADDLE_WIDTH + 10) * RATIO).toString() + 'px';
+            paddleHintEl.style.top = (INITIAL_PADDLE_1_Y * RATIO).toString() + 'px';
             break;
         case 2:
-            paddleHintEl.style.left = (INITIAL_PADDLE_2_X - 10 - textWidth).toString() + 'px';
-            paddleHintEl.style.top = INITIAL_PADDLE_2_Y.toString() + 'px';
+            paddleHintEl.style.left = ((INITIAL_PADDLE_2_X - 10 - textWidth) * RATIO).toString() + 'px';
+            paddleHintEl.style.top = (INITIAL_PADDLE_2_Y * RATIO).toString() + 'px';
             break;
         default:
             throw new Error(`Unknown player id ${playerId}`);
@@ -382,16 +445,17 @@ function updateUi(context) {
     const paddle2El = document.querySelector('.paddle-2');
     const ballEl = document.querySelector('.ball');
 
-    paddle1El.style.left = state.paddle1X.toString() + 'px';
-    paddle1El.style.top = state.paddle1Y.toString() + 'px';
+    paddle1El.style.left = (state.paddle1X * RATIO).toString() + 'px';
+    paddle1El.style.top = (state.paddle1Y * RATIO).toString() + 'px';
 
-    paddle2El.style.left = state.paddle2X.toString() + 'px';
-    paddle2El.style.top = state.paddle2Y.toString() + 'px';
+    paddle2El.style.left = (state.paddle2X * RATIO).toString() + 'px';
+    paddle2El.style.top = (state.paddle2Y * RATIO).toString() + 'px';
 
-    ballEl.style.left = state.ballX.toString() + 'px';
-    ballEl.style.top = state.ballY.toString() + 'px';
+    ballEl.style.left = (state.ballX * RATIO).toString() + 'px';
+    ballEl.style.top = (state.ballY * RATIO).toString() + 'px';
 }
 
+// FIX ME: Tapping the up and down arrows can result in a paddle not being in the same position as observed by both players.
 function updateState(state, events, context) {
     state = Object.assign({}, state);  // copy
     const now = Date.now() - context.startTime;
@@ -478,8 +542,18 @@ function tick(state, context) {
     // FIX ME: So that the word "state" doesn't need to be written and read so much by humans, extract its values at the beginning of this function and assign them at the end.
 
     state.paddle1Y += state.paddle1Dy;
+    if (state.paddle1Y < 0) {
+        state.paddle1Y = 0;
+    } else if (state.paddle1Y + PADDLE_HEIGHT > LEVEL_HEIGHT) {
+        state.paddle1Y = LEVEL_HEIGHT - PADDLE_HEIGHT;
+    }
 
     state.paddle2Y += state.paddle2Dy;
+    if (state.paddle2Y < 0) {
+        state.paddle2Y = 0;
+    } else if (state.paddle2Y + PADDLE_HEIGHT > LEVEL_HEIGHT) {
+        state.paddle2Y = LEVEL_HEIGHT - PADDLE_HEIGHT;
+    }
 
     // FIX ME: Take into account how much they overlap to determine ball's new position. If they overlap a little, then the ball should end up closer to the paddle. If they overlap a lot, then the ball should end up farther from the paddle.
     // If ball collides with a paddle, then change ball direction to move toward
@@ -541,7 +615,13 @@ function endGame(context) {
     // Show new game instructions
     document.querySelector('.new-game').style.display = '';
 
+    // Hide waiting, in case server disconnected before game started.
+    document.querySelector('.waiting').style.display = 'none';
+
     for (const intervalHandle of context.intervalHandles) {
         clearInterval(intervalHandle);
     }
+
+    // FIX ME: Remove key handlers
+    // FIX ME: Remove mouse handlers
 }
