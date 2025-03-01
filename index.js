@@ -256,8 +256,12 @@ function initializeUi() {
     ballEl.style.height = (BALL_HEIGHT * RATIO).toString() + 'px';
     
     // HACK: The 4 accounts for the border around the game
-    // HACK: I don't know why but floor seems to be necessary on desktop browsers.
-    const buttonWidth = Math.floor((1 - PROPORTION_OF_ACTION_BODY_WIDTH_TAKEN_BY_LEVEL) * ACTION_BODY_WIDTH - 4).toString() + 'px';
+    // NOTE: It makes sense that floor might be necessary, but for some reason
+    //       it only seems to be necessary on desktop browsers.
+    const buttonWidth = Math.min(
+        Math.floor((1 - PROPORTION_OF_ACTION_BODY_WIDTH_TAKEN_BY_LEVEL) * ACTION_BODY_WIDTH - 4),
+        (LEVEL_HEIGHT * RATIO / 2) - 1
+    ).toString() + 'px';
     upButtonEl.style.width = buttonWidth;
     upButtonEl.style.height = buttonWidth;
     downButtonEl.style.width = buttonWidth;
