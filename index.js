@@ -606,9 +606,12 @@ function tick(state, context) {
         state.ballDx = -Math.abs(state.ballDx);
     }
 
-    if (state.ballX <= 0 || state.ballX + BALL_WIDTH >= LEVEL_WIDTH) {
-        // FIX ME: This is not quite right. If the other player was about to lose but then at the last moment they start moving or stop moving their paddle or change the direction of their paddle and don't lose, then when the update comes from the other client that that happened and those events are replayed, the game should continue running, but this may have already ended it, depending on timing.
-        // FIX ME
+    // FIX ME: Update this comment. I think I fixed this by add playerId to the conditions.
+    // FIX ME: This is not quite right. If the other player was about to lose but then at the last moment they start moving or stop moving their paddle or change the direction of their paddle and don't lose, then when the update comes from the other client that that happened and those events are replayed, the game should continue running, but this may have already ended it, depending on timing.
+    if (
+        (state.ballX <= 0 && context.playerId === 1) ||
+        (state.ballX + BALL_WIDTH >= LEVEL_WIDTH && context.playerId === 2)
+    ) {
         endGame(context);
         return;
     }
