@@ -152,7 +152,7 @@ function addKeyListeners(context) {
             data: {
                 key_code: ev.keyCode,
             },
-            time: Date.now() - context.startTime,
+            time: getEventMilliseconds(ev) - context.startTime,
             player_id: context.playerId,
         }
         context.events.push(ev2);
@@ -185,7 +185,7 @@ function addKeyListeners(context) {
             data: {
                 key_code: ev.keyCode,
             },
-            time: Date.now() - context.startTime,
+            time: getEventMilliseconds(ev) - context.startTime,
             player_id: context.playerId,
         }
         context.events.push(ev2);
@@ -223,7 +223,7 @@ function makeMouseOrTouchHandler(keyEventType, keyCode, context) {
             data: {
                 key_code: keyCode,
             },
-            time: Date.now() - context.startTime,
+            time: getEventMilliseconds(ev) - context.startTime,
             player_id: context.playerId,
         }
         context.events.push(ev2);
@@ -308,28 +308,34 @@ function handleMessage(socket, message, context) {
             // Show controls
             document.querySelector('.up-and-down-buttons').style.display = '';
 
-            const countdownStartTime = Date.now();
+            const countdownStartTime = message.data.start_time;
             const countdownEl = document.querySelector('.countdown');
             countdownEl.style.fontSize = (50 * RATIO).toString() + 'px';
-            const startingInterval = setInterval(() => {
+            const startingInterval1 = setInterval(() => {
                 const now = Date.now();
                 if (now < countdownStartTime + 1000) {
                     countdownEl.innerText = '3';
                 } else if (now < countdownStartTime + 2000) {
                     countdownEl.innerText = '2';
-                } else if (now < countdownStartTime + 3000) {
+                } else if (now < countdownStartTime + 2900) {
                     countdownEl.innerText = '1';
                 } else {
-                    countdownEl.innerText = '';
-                    countdownEl.style.display = 'none';
+                    clearInterval(startingInterval1);
+                    const startingInterval2 = setInterval(() => {
+                        const now = Date.now();
+                        if (now >= countdownStartTime + 3000) {
+                            countdownEl.innerText = '';
+                            countdownEl.style.display = 'none';
 
-                    context.startTime = now;
-                    context.started = true;
+                            context.startTime = eventNow();
+                            context.started = true;
 
-                    // Hide paddle hint
-                    document.querySelector('.paddle-hint').style.display = 'none';
+                            // Hide paddle hint
+                            document.querySelector('.paddle-hint').style.display = 'none';
 
-                    clearInterval(startingInterval);
+                            clearInterval(startingInterval2);
+                        }
+                    }, 1);
                 }
             }, 10);
 
@@ -462,7 +468,7 @@ function updateUi(context) {
 // FIX ME: Tapping the up and down arrows can result in a paddle not being in the same position as observed by both players.
 function updateState(state, events, context) {
     state = Object.assign({}, state);  // copy
-    const now = Date.now() - context.startTime;
+    const now = eventNow() - context.startTime;
 
     let eventTime = state.time;
     for (const ev of events) {
@@ -628,4 +634,16 @@ function endGame(context) {
 
     // FIX ME: Remove key handlers
     // FIX ME: Remove mouse handlers
+}
+
+function eventNow() {
+    return getEventMilliseconds(new Event(''));
+}
+
+function getEventMilliseconds(ev) {
+    // In some browsers Event.timeStamp returns an integer and in others it
+    // returns more precision. Round so that an integer is always returned to be
+    // consistent across browsers, since these numbers are sent to the other
+    // player's client.
+    return Math.round(ev.timeStamp);
 }

@@ -2,6 +2,7 @@ import asyncio
 import orjson as json
 from sanic import html, Request, Sanic, text, Websocket
 from textwrap import dedent
+import time
 import websockets
 
 app = Sanic("MyHelloWorldApp")
@@ -77,17 +78,20 @@ async def ws(request: Request, ws: Websocket) -> None:
                     other_player_ws=ws,
                     player_id=2,
                 )
+                start_time = time.time_ns() // 1_000_000  # milliseconds
 
                 await ws.send(json.dumps(dict(
                     type='server_start',
                     data=dict(
                         player_id=active_players[ws]['player_id'],
+                        start_time=start_time,
                     ),
                 )))
                 await other_player_ws.send(json.dumps(dict(
                     type='server_start',
                     data=dict(
                         player_id=active_players[other_player_ws]['player_id'],
+                        start_time=start_time,
                     ),
                 )))
             else:
