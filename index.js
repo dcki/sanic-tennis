@@ -27,6 +27,9 @@ const INITIAL_PADDLE_1_X = PADDLE_X_DISTANCE_FROM_SIDE;
 const INITIAL_PADDLE_1_Y = (LEVEL_HEIGHT / 2) - (PADDLE_HEIGHT / 2);
 const INITIAL_PADDLE_2_X = LEVEL_WIDTH - PADDLE_WIDTH - PADDLE_X_DISTANCE_FROM_SIDE;
 const INITIAL_PADDLE_2_Y = (LEVEL_HEIGHT / 2) - (PADDLE_HEIGHT / 2);
+const PARTICLES_PER_SECOND = 200;
+const PARTICLE_LIFETIME = 1;
+const PARTICLE_EXPIRATION_SPEED = 1;
 const KEY_CODE_UP = 38;
 const KEY_CODE_DOWN = 40;
 const RELEVANT_KEY_CODES = [
@@ -108,6 +111,9 @@ function makeContext() {
         snapshot: {},
         intervalHandles: [],
         isKeyPressedForCode: {},
+        particles: [],
+        unusedParticleDomElements: [],
+        lastParticleCreatedTime: null,
     };
 
     for (const code of RELEVANT_KEY_CODES) {
@@ -413,6 +419,7 @@ function initializeIntervals(context) {
         if (context.state.ended) {
             return;
         }
+        updateParticlesState(context);
         updateUi(context);
     }, 20));
     context.intervalHandles.push(setInterval(() => {
@@ -473,6 +480,11 @@ function updateUi(context) {
 
     ballEl.style.left = (state.ballX * window.screenToGameRatio).toString() + 'px';
     ballEl.style.top = (state.ballY * window.screenToGameRatio).toString() + 'px';
+
+    for (const particle of context.particles) {
+        particle.el.style.left = (particle.x * window.screenToGameRatio).toString() + 'px';
+        particle.el.style.top = (particle.y * window.screenToGameRatio).toString() + 'px';
+    }
 }
 
 // FIX ME: Tapping the up and down arrows can result in a paddle not being in the same position as observed by both players.
@@ -624,6 +636,50 @@ function tick(state, context) {
     ) {
         endGame(context);
         return;
+    }
+}
+
+function updateParticlesState(context) {
+    // HACK: Update positions of particles in this function, which normally only
+    //       uses positions that were already calculated. This function doesn't
+    //       normally update state, for good reason... But these are just
+    //       particles so the weird things that will happen due to this hack
+    //       aren't as important. For now I'm just going to hack this, because I
+    //       want to quickly see it mostly work.
+    if (context.lastParticleCreatedTime === null || Date.now() - context.lastParticleCreatedTime > 1000 / PARTICLES_PER_SECOND) {
+        let particleEl;
+        if (context.unusedParticleDomElements.length > 0) {
+            particleEl = context.unusedParticleDomElements.pop();
+        } else {
+            particleEl = document.createElement('div');
+            particleEl.classList.add('particle');
+            particleEl.style.backgroundColor = `rgb(${128 + Math.floor(Math.random() * 128)}, ${128 + Math.floor(Math.random() * 128)}, ${128 + Math.floor(Math.random() * 128)})`;
+            const gameEl = document.querySelector('.game-field');
+            gameEl.append(particleEl);
+        }
+        context.particles.push({
+            el: particleEl,
+            x: context.state.ballX + BALL_WIDTH / 2 + Math.random() * BALL_WIDTH - (BALL_WIDTH / 2),
+            y: context.state.ballY + BALL_HEIGHT / 2 + Math.random() * BALL_HEIGHT - (BALL_HEIGHT / 2),
+            dx: context.state.ballDx,
+            dy: context.state.ballDy,
+        });
+
+        context.lastParticleCreatedTime = Date.now();
+    }
+    for (let i = context.particles.length - 1; i >= 0; i--) {
+        const particle = context.particles[i];
+        particle.x += particle.dx / 1000;
+        particle.y += particle.dy / 1000;
+        // FIX ME: PARTICLE_LIFETIME
+        // FIX ME: HACK
+        particle.dx *= 0.6;
+        // FIX ME: HACK
+        particle.dy *= 0.6;
+        if (Math.sqrt(particle.dx*particle.dx + particle.dy*particle.dy) < PARTICLE_EXPIRATION_SPEED) {
+            context.particles.splice(i, 1);
+            context.unusedParticleDomElements.push(particle.el);
+        }
     }
 }
 

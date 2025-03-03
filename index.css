@@ -28,6 +28,12 @@ html, body {
     background-color: black;
     border-radius: 1000px;  /* make circular regardless of width and height */
 }
+.particle {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 1000px;  /* make circular regardless of width and height */
+}
 .paddle-hint {
     position: absolute;
     color: red;
