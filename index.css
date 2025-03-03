@@ -1,16 +1,19 @@
 *, *:before, *:after {
     box-sizing: border-box;
 }
+:root {
+    --game-border-width: 2px;
+}
 html, body {
     margin: 0;
     padding: 0;
 }
 .action-body {
-    margin: 10px;
+    /* NOTE: ACTION_BODY_MARGIN is duplicated in index.js and index.css. */
+    margin: 10px;  /* ACTION_BODY_MARGIN */
 }
 .game-field {
-    float: left;
-    border: solid 2px black;
+    border: solid var(--game-border-width) black;
     position: relative;
     display: flex;
     box-sizing: content-box;  /* make height control height of area inside border */
@@ -43,11 +46,13 @@ html, body {
     align-items: center;
 }
 .up-button {
-    margin: 10px 10px 0 10px;
+    /* NOTE: BUTTON_MARGIN is duplicated in index.js and index.css. */
+    margin: calc(10px + var(--game-border-width)) 10px 0 10px;  /* BUTTON_MARGIN */
     border-bottom: 1px solid black;
 }
 .down-button {
-    margin: 0 10px 10px 10px;
+    /* NOTE: BUTTON_MARGIN is duplicated in index.js and index.css. */
+    margin: 0 10px 10px 10px;  /* BUTTON_MARGIN */
 }
 .controls-hint {
     float: left;

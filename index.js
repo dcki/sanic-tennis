@@ -3,6 +3,10 @@
 const PRINT_TRACE = false;
 
 // FIX ME: Make smaller y values refer to visually lower areas of the game area and larger y values refer to visually higher areas, and make the rendering code translate those values into the values that the browser uses.
+// NOTE: ACTION_BODY_MARGIN is duplicated in index.js and index.css.
+const ACTION_BODY_MARGIN = 10;
+// NOTE: BUTTON_MARGIN is duplicated in index.js and index.css.
+const BUTTON_MARGIN = 10;
 const LEVEL_WIDTH = 400;
 const LEVEL_HEIGHT = 200;
 const BALL_WIDTH = 10;
@@ -32,12 +36,6 @@ const RELEVANT_KEY_CODES = [
 
 // FIX ME
 const PROPORTION_OF_ACTION_BODY_WIDTH_TAKEN_BY_LEVEL = 2/3;
-const ACTION_BODY_WIDTH = window.innerWidth - 20;
-
-// FIX ME: Add comment.
-// FIX ME
-// 20 accounts for .action-body margin.
-const RATIO = ACTION_BODY_WIDTH / LEVEL_WIDTH * PROPORTION_OF_ACTION_BODY_WIDTH_TAKEN_BY_LEVEL;
 
 function start() {
     window.addEventListener('error', ev => {
@@ -56,7 +54,14 @@ function start() {
     addKeyListeners(context);
     addMouseListeners(context);
 
-    initializeUi();
+    window.addEventListener('resize', () => {
+        resetUi();
+        if (context.playerId !== null) {
+            updateCountdownUi(context.playerId);
+        }
+        updateUi(context);
+    });
+    resetUi();
 
     const socket = new WebSocket('/ws');
     socket.addEventListener('open', ev => {
@@ -235,7 +240,12 @@ function makeMouseOrTouchHandler(keyEventType, keyCode, context) {
     };
 }
 
-function initializeUi() {
+function resetUi() {
+    const actionBodyWidth = window.innerWidth - (2 * ACTION_BODY_MARGIN);
+
+    window.screenToGameRatio = (
+        actionBodyWidth * PROPORTION_OF_ACTION_BODY_WIDTH_TAKEN_BY_LEVEL / LEVEL_WIDTH);
+
     const gameEl = document.querySelector('.game-field');
     const paddle1El = document.querySelector('.paddle-1');
     const paddle2El = document.querySelector('.paddle-2');
@@ -243,29 +253,27 @@ function initializeUi() {
     const upButtonEl = document.querySelector('.up-button');
     const downButtonEl = document.querySelector('.down-button');
 
-    gameEl.style.width = (LEVEL_WIDTH * RATIO).toString() + 'px';
-    gameEl.style.height = (LEVEL_HEIGHT * RATIO).toString() + 'px';
+    gameEl.style.width = (LEVEL_WIDTH * window.screenToGameRatio).toString() + 'px';
+    gameEl.style.height = (LEVEL_HEIGHT * window.screenToGameRatio).toString() + 'px';
 
-    paddle1El.style.width = (PADDLE_WIDTH * RATIO).toString() + 'px';
-    paddle1El.style.height = (PADDLE_HEIGHT * RATIO).toString() + 'px';
+    paddle1El.style.width = (PADDLE_WIDTH * window.screenToGameRatio).toString() + 'px';
+    paddle1El.style.height = (PADDLE_HEIGHT * window.screenToGameRatio).toString() + 'px';
 
-    paddle2El.style.width = (PADDLE_WIDTH * RATIO).toString() + 'px';
-    paddle2El.style.height = (PADDLE_HEIGHT * RATIO).toString() + 'px';
+    paddle2El.style.width = (PADDLE_WIDTH * window.screenToGameRatio).toString() + 'px';
+    paddle2El.style.height = (PADDLE_HEIGHT * window.screenToGameRatio).toString() + 'px';
 
-    ballEl.style.width = (BALL_WIDTH * RATIO).toString() + 'px';
-    ballEl.style.height = (BALL_HEIGHT * RATIO).toString() + 'px';
-    
-    // HACK: The 4 accounts for the border around the game
-    // NOTE: It makes sense that floor might be necessary, but for some reason
-    //       it only seems to be necessary on desktop browsers.
-    const buttonWidth = Math.min(
-        Math.floor((1 - PROPORTION_OF_ACTION_BODY_WIDTH_TAKEN_BY_LEVEL) * ACTION_BODY_WIDTH - 4),
-        (LEVEL_HEIGHT * RATIO / 2) - 1
+    ballEl.style.width = (BALL_WIDTH * window.screenToGameRatio).toString() + 'px';
+    ballEl.style.height = (BALL_HEIGHT * window.screenToGameRatio).toString() + 'px';
+
+    const buttonSideLength = (
+        (LEVEL_HEIGHT * window.screenToGameRatio / 2)
+        - 0.5  // for 1px border between buttons
+        - BUTTON_MARGIN
     ).toString() + 'px';
-    upButtonEl.style.width = buttonWidth;
-    upButtonEl.style.height = buttonWidth;
-    downButtonEl.style.width = buttonWidth;
-    downButtonEl.style.height = buttonWidth;
+    upButtonEl.style.width = buttonSideLength;
+    upButtonEl.style.height = buttonSideLength;
+    downButtonEl.style.width = buttonSideLength;
+    downButtonEl.style.height = buttonSideLength;
 }
 
 function handleConnect(context, socket) {
@@ -310,7 +318,6 @@ function handleMessage(socket, message, context) {
 
             const countdownStartTime = message.data.start_time;
             const countdownEl = document.querySelector('.countdown');
-            countdownEl.style.fontSize = (50 * RATIO).toString() + 'px';
             const startingInterval1 = setInterval(() => {
                 const now = Date.now();
                 if (now < countdownStartTime + 1000) {
@@ -341,7 +348,7 @@ function handleMessage(socket, message, context) {
 
             context.playerId = message.data.player_id;
 
-            highlightPlayerPaddle(context.playerId);
+            updateCountdownUi(context.playerId);
             updateUi(context);
 
             break;
@@ -429,20 +436,23 @@ function initializeIntervals(context) {
     }, 50));
 }
 
-function highlightPlayerPaddle(playerId) {
+function updateCountdownUi(playerId) {
+    const countdownEl = document.querySelector('.countdown');
+    countdownEl.style.fontSize = (50 * window.screenToGameRatio).toString() + 'px';
+
     const paddleHintEl = document.querySelector('.paddle-hint');
     paddleHintEl.innerText = `You are player ${playerId}`;
     const textWidth = 60;
-    paddleHintEl.style.width = (textWidth * RATIO).toString() + 'px';
-    paddleHintEl.style.fontSize = (16 * RATIO).toString() + 'px';
+    paddleHintEl.style.width = (textWidth * window.screenToGameRatio).toString() + 'px';
+    paddleHintEl.style.fontSize = (16 * window.screenToGameRatio).toString() + 'px';
     switch (playerId) {
         case 1:
-            paddleHintEl.style.left = ((INITIAL_PADDLE_1_X + PADDLE_WIDTH + 10) * RATIO).toString() + 'px';
-            paddleHintEl.style.top = (INITIAL_PADDLE_1_Y * RATIO).toString() + 'px';
+            paddleHintEl.style.left = ((INITIAL_PADDLE_1_X + PADDLE_WIDTH + 10) * window.screenToGameRatio).toString() + 'px';
+            paddleHintEl.style.top = (INITIAL_PADDLE_1_Y * window.screenToGameRatio).toString() + 'px';
             break;
         case 2:
-            paddleHintEl.style.left = ((INITIAL_PADDLE_2_X - 10 - textWidth) * RATIO).toString() + 'px';
-            paddleHintEl.style.top = (INITIAL_PADDLE_2_Y * RATIO).toString() + 'px';
+            paddleHintEl.style.left = ((INITIAL_PADDLE_2_X - 10 - textWidth) * window.screenToGameRatio).toString() + 'px';
+            paddleHintEl.style.top = (INITIAL_PADDLE_2_Y * window.screenToGameRatio).toString() + 'px';
             break;
         default:
             throw new Error(`Unknown player id ${playerId}`);
@@ -455,14 +465,14 @@ function updateUi(context) {
     const paddle2El = document.querySelector('.paddle-2');
     const ballEl = document.querySelector('.ball');
 
-    paddle1El.style.left = (state.paddle1X * RATIO).toString() + 'px';
-    paddle1El.style.top = (state.paddle1Y * RATIO).toString() + 'px';
+    paddle1El.style.left = (state.paddle1X * window.screenToGameRatio).toString() + 'px';
+    paddle1El.style.top = (state.paddle1Y * window.screenToGameRatio).toString() + 'px';
 
-    paddle2El.style.left = (state.paddle2X * RATIO).toString() + 'px';
-    paddle2El.style.top = (state.paddle2Y * RATIO).toString() + 'px';
+    paddle2El.style.left = (state.paddle2X * window.screenToGameRatio).toString() + 'px';
+    paddle2El.style.top = (state.paddle2Y * window.screenToGameRatio).toString() + 'px';
 
-    ballEl.style.left = (state.ballX * RATIO).toString() + 'px';
-    ballEl.style.top = (state.ballY * RATIO).toString() + 'px';
+    ballEl.style.left = (state.ballX * window.screenToGameRatio).toString() + 'px';
+    ballEl.style.top = (state.ballY * window.screenToGameRatio).toString() + 'px';
 }
 
 // FIX ME: Tapping the up and down arrows can result in a paddle not being in the same position as observed by both players.
