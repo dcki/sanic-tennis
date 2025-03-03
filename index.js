@@ -16,7 +16,7 @@ const PADDLE_HEIGHT = 40;
 const PADDLE_X_DISTANCE_FROM_SIDE = 20;
 const INITIAL_BALL_X = 1;
 const INITIAL_BALL_Y = 0;
-const BALL_SPEED = 400;  // distance per second
+const BALL_SPEED = 200;  // distance per second
 const PADDLE_SPEED = 250;  // distance per second
 // FIX ME: Try different angles and see if it behaves in a sane way
 // FIX ME: Try setting dx to speed and dy to zero, and see if the speed looks similar to this
