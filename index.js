@@ -340,6 +340,20 @@ function handleMessage(socket, message, context) {
                             countdownEl.innerText = '';
                             countdownEl.style.display = 'none';
 
+                            // FIX ME:
+                            // 
+                            // The start time syncing stuff isn't working correctly yet. Players' games were *more* in sync before the "Ensure time stamps are used, not the times when the events are handled" commit.
+                            // 
+                            // Another way to do it:
+                            // 
+                            // Before game starts:
+                            // 1. In client, remember current time and send message to server.
+                            // 2. Server should respond with what the server thinks is the current time.
+                            // 3. In client, remember what time it is when response is received.
+                            // 4. Approximate round trip time to the server can be calculated from the 2 times that the client stored. Dividing RTT by 2 gives an approximation of time interval between when server sent the response and when it was received. Given that time interval (i), the current time (ct_client), and the time the server reported as the current time (ct_server), then a number (time_difference) can be calculated that is how far the client clock is ahead of the server clock: time_difference = ct_client - (ct_server + i). Any time a game event time (ev_time) should be computed, then ev_time = ct_client2 - time_difference.
+                            // 5. By making multiple requests to the server for what time it is, and averaging the resulting time_differences, a more accurate time_difference can be computed.
+                            // 6. I was going to say "By including server time in every response and continuously updating time_difference to consider the data from several recent requests, time_difference can account for changes in network conditions as the game progresses"
+                            //    But I'm not saying that because what we'd really be updating is an estimate in differences between client and server clocks, and that's unlikely to change much or at all during the game. More data may be useful in general, but there isn't necessarily more value in data that comes in after the game starts vs before.
                             context.startTime = eventNow();
                             context.started = true;
 
