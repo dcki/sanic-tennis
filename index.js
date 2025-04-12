@@ -322,6 +322,8 @@ function handleMessage(socket, message, context) {
             // Show controls
             document.querySelector('.up-and-down-buttons').style.display = '';
 
+            // FIX ME: Show "Loading..." and no subtitle, and then subtitle "Syncing clocks...", and then no subtitle, and then no "Loading..."
+            
             const countdownStartTime = message.data.start_time;
             const countdownEl = document.querySelector('.countdown');
             const startingInterval1 = setInterval(() => {
