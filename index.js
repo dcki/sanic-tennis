@@ -287,8 +287,6 @@ function handleConnect(context, socket) {
 
     // Show waiting
     document.querySelector('.waiting').style.display = '';
-
-    initializeIntervals(context);
 }
 
 function handleDisconnect(ev, context, socket) {
@@ -359,6 +357,8 @@ function handleMessage(socket, message, context) {
                             context.startTime = eventNow();
                             context.started = true;
 
+                            initializeIntervals(context);
+
                             // Hide paddle hint
                             document.querySelector('.paddle-hint').style.display = 'none';
 
@@ -428,9 +428,6 @@ function handleMessage(socket, message, context) {
 
 function initializeIntervals(context) {
     context.intervalHandles.push(setInterval(() => {
-        if (!context.started) {
-            return;
-        }
         context.state = updateState(context.state, [], context);
         if (context.state.ended) {
             return;
@@ -439,9 +436,6 @@ function initializeIntervals(context) {
         updateUi(context);
     }, 20));
     context.intervalHandles.push(setInterval(() => {
-        if (!context.started) {
-            return;
-        }
         if (context.unsentEvents.length > 0) {
             context.socket.send(JSON.stringify({
                 type: 'client_update',
