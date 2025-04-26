@@ -99,7 +99,12 @@ function makeContext() {
         started: false,
         ended: false,
         socket: null,
-        startTime: null,
+        clockSyncData: [],
+        // The number of milliseconds that the client clock is ahead of the
+        // server clock. To get the current server time, subtract this from
+        // Date.now(). (The server time is the canonical time, shared by all
+        // players, for any game event.)
+        timeOffset: null,
         playerId: null,
         events: [],
         unsentEvents: [],
@@ -163,7 +168,7 @@ function addKeyListeners(context) {
             data: {
                 key_code: ev.keyCode,
             },
-            time: getEventMilliseconds(ev) - context.startTime,
+            time: getEventMilliseconds(ev, context),
             player_id: context.playerId,
         }
         context.events.push(ev2);
@@ -196,7 +201,7 @@ function addKeyListeners(context) {
             data: {
                 key_code: ev.keyCode,
             },
-            time: getEventMilliseconds(ev) - context.startTime,
+            time: getEventMilliseconds(ev, context),
             player_id: context.playerId,
         }
         context.events.push(ev2);
@@ -234,7 +239,7 @@ function makeMouseOrTouchHandler(keyEventType, keyCode, context) {
             data: {
                 key_code: keyCode,
             },
-            time: getEventMilliseconds(ev) - context.startTime,
+            time: getEventMilliseconds(ev, context),
             player_id: context.playerId,
         }
         context.events.push(ev2);
@@ -287,6 +292,8 @@ function handleConnect(context, socket) {
 
     // Show waiting
     document.querySelector('.waiting').style.display = '';
+
+    requestClockSync(context);
 }
 
 function handleDisconnect(ev, context, socket) {
@@ -310,7 +317,41 @@ function handleDisconnect(ev, context, socket) {
 
 function handleMessage(socket, message, context) {
     switch (message.type) {
-        case 'server_start':
+        // FIX ME: I think there is already a FIX ME somewhere else for this: Tell user that this is in progress.
+        // FIX ME: It has not yet been proven that a lack of clock syncing has a significant impact on gameplay. (Or at least not documented. I forget what I observed...)
+        case 'server_clock_sync':
+            // Finish recording one clock sync.
+            const lastIndex = context.clockSyncData.length - 1;
+            context.clockSyncData[lastIndex]['responseReceivedTime'] = Date.now();
+            context.clockSyncData[lastIndex]['serverTime'] = message.data.server_time;
+
+            if (!message.data.last_clock_sync) {
+                requestClockSync(context);
+            } else {
+                // Calculate context.timeOffset
+                // 
+                // It's assumed that averaging several clock syncs will result
+                // in a more accurate timeOffset than just one clock sync.
+                const timeOffsets = context.clockSyncData.map(clockSync => {
+                    const rtt = clockSync.responseReceivedTime - clockSync.requestSentTime;
+                    const clientTimeWhenServerProcessedRequest = clockSync.responseReceivedTime - rtt / 2;
+                    // This is a value like context.timeOffset. See the comment
+                    // in makeContext() on timeOffset.
+                    const timeOffset = clientTimeWhenServerProcessedRequest - clockSync.serverTime;
+                    return timeOffset;
+                });
+                context.timeOffset = (
+                    timeOffsets.reduce((total, nextValue) => total + nextValue)  // sum
+                    / timeOffsets.length
+                );  // average
+
+                context.socket.send(JSON.stringify({
+                    type: 'client_ready_to_match',
+                    data: {},
+                }));
+            }
+            break;
+        case 'server_matched':
             // Hide waiting
             document.querySelector('.waiting').style.display = 'none';
 
@@ -321,22 +362,42 @@ function handleMessage(socket, message, context) {
             document.querySelector('.up-and-down-buttons').style.display = '';
 
             // FIX ME: Show "Loading..." and no subtitle, and then subtitle "Syncing clocks...", and then no subtitle, and then no "Loading..."
-            
-            const countdownStartTime = message.data.start_time;
+
+            // FIX ME: Use startTime (Remember it will typically be about 3 seconds in the future)
+            // FIX ME: Use startTime
+            // FIX ME: Use startTime
+            // FIX ME: Use startTime
+            // FIX ME: Use startTime
+            // FIX ME: Use startTime
+            const startTime = message.data.start_time;
             const countdownEl = document.querySelector('.countdown');
             const startingInterval1 = setInterval(() => {
-                const now = Date.now();
-                if (now < countdownStartTime + 1000) {
+                const now = eventNow(context);
+                // FIX ME: countdownStartTime is no longer defined
+                if (now < startTime - 3000) {
                     countdownEl.innerText = '3';
-                } else if (now < countdownStartTime + 2000) {
+                    // FIX ME
+                    console.log('3');
+                } else if (now < startTime - 2000) {
                     countdownEl.innerText = '2';
-                } else if (now < countdownStartTime + 2900) {
+                    // FIX ME
+                    console.log('2');
+                } else if (now < startTime - 1000) {
                     countdownEl.innerText = '1';
+                    // FIX ME
+                    console.log('1');
                 } else {
+                    // FIX ME
+                    console.log('0 1');
                     clearInterval(startingInterval1);
                     const startingInterval2 = setInterval(() => {
-                        const now = Date.now();
-                        if (now >= countdownStartTime + 3000) {
+                        // FIX ME
+                        console.log('0 2');
+                        const now = eventNow(context);
+                        if (now >= startTime) {
+                            // FIX ME
+                            console.log('0 3');
+
                             countdownEl.innerText = '';
                             countdownEl.style.display = 'none';
 
@@ -354,7 +415,6 @@ function handleMessage(socket, message, context) {
                             // 5. By making multiple requests to the server for what time it is, and averaging the resulting time_differences, a more accurate time_difference can be computed.
                             // 6. I was going to say "By including server time in every response and continuously updating time_difference to consider the data from several recent requests, time_difference can account for changes in network conditions as the game progresses"
                             //    But I'm not saying that because what we'd really be updating is an estimate in differences between client and server clocks, and that's unlikely to change much or at all during the game. More data may be useful in general, but there isn't necessarily more value in data that comes in after the game starts vs before.
-                            context.startTime = eventNow();
                             context.started = true;
 
                             initializeIntervals(context);
@@ -424,6 +484,18 @@ function handleMessage(socket, message, context) {
         default:
             throw new Error(`Unexpected message type ${type}`);
     }
+}
+
+function requestClockSync(context) {
+    context.clockSyncData.push({
+        requestSentTime: Date.now(),
+        responseReceivedTime: null,
+        serverTime: null,
+    });
+    context.socket.send(JSON.stringify({
+        type: 'client_clock_sync',
+        data: {},
+    }));
 }
 
 function initializeIntervals(context) {
@@ -500,7 +572,7 @@ function updateUi(context) {
 // FIX ME: Tapping the up and down arrows can result in a paddle not being in the same position as observed by both players.
 function updateState(state, events, context) {
     state = Object.assign({}, state);  // copy
-    const now = eventNow() - context.startTime;
+    const now = eventNow(context);
 
     let eventTime = state.time;
     for (const ev of events) {
@@ -617,6 +689,8 @@ function tick(state, context) {
     }
 
     // Update ball position
+    // FIX ME
+    console.log('state.ballX += state.ballDx / 1000;');
     state.ballX += state.ballDx / 1000;
     state.ballY += state.ballDy / 1000;
 
@@ -644,6 +718,8 @@ function tick(state, context) {
         (state.ballX <= 0 && context.playerId === 1) ||
         (state.ballX + BALL_WIDTH >= LEVEL_WIDTH && context.playerId === 2)
     ) {
+        // FIX ME
+        console.log('tick: endGame');
         endGame(context);
         return;
     }
@@ -656,7 +732,7 @@ function updateParticlesState(context) {
     //       particles so the weird things that will happen due to this hack
     //       aren't as important. For now I'm just going to hack this, because I
     //       want to quickly see it mostly work.
-    if (context.lastParticleCreatedTime === null || Date.now() - context.lastParticleCreatedTime > 1000 / PARTICLES_PER_SECOND) {
+    if (context.lastParticleCreatedTime === null || eventNow(context) - context.lastParticleCreatedTime > 1000 / PARTICLES_PER_SECOND) {
         let particleEl;
         if (context.unusedParticleDomElements.length > 0) {
             particleEl = context.unusedParticleDomElements.pop();
@@ -675,7 +751,7 @@ function updateParticlesState(context) {
             dy: context.state.ballDy,
         });
 
-        context.lastParticleCreatedTime = Date.now();
+        context.lastParticleCreatedTime = eventNow(context);
     }
     for (let i = context.particles.length - 1; i >= 0; i--) {
         const particle = context.particles[i];
@@ -715,14 +791,26 @@ function endGame(context) {
     // FIX ME: Remove mouse handlers
 }
 
-function eventNow() {
-    return getEventMilliseconds(new Event(''));
+function eventNow(context) {
+    return getEventMilliseconds(new Event(''), context);
 }
 
-function getEventMilliseconds(ev) {
-    // In some browsers Event.timeStamp returns an integer and in others it
-    // returns more precision. Round so that an integer is always returned to be
-    // consistent across browsers, since these numbers are sent to the other
-    // player's client.
-    return Math.round(ev.timeStamp);
+function getEventMilliseconds(ev, context) {
+    // TODO: Try again to use ev.timestamp. The problem is that ev.timestamp is
+    //       milliseconds since page load (performance.timeOrigin), and can't be
+    //       compared directly to times produced by Date.now(). Worse,
+    //       apparently performance.timeOrigin + ev.timestamp can be
+    //       significantly different from Date.now(). See the notes at
+    //       https://developer.mozilla.org/en-US/docs/Web/API/Performance/timeOrigin
+    // Math.round(): In some browsers Event.timeStamp returns an integer and in
+    // others it returns more precision. Round so that an integer is always
+    // returned to be consistent across browsers, since these numbers are sent
+    // to the other player's client.
+    //return pageLoadTime + Math.round(ev.timeStamp) - context.timeOffset;
+
+    // HACK: It seems like this could be some number of milliseconds after the
+    //       actual event occurred, for example if the event occurred while a
+    //       long running event handler function was running (to handle an
+    //       earlier event), which would introduce a delay.
+    return Date.now() - context.timeOffset;
 }

@@ -3,6 +3,7 @@ import orjson as json
 from sanic import html, Request, Sanic, text, Websocket
 from textwrap import dedent
 import time
+from typing import Optional
 import websockets
 
 app = Sanic("MyHelloWorldApp")
@@ -16,6 +17,7 @@ with open('index.js', 'r') as f:
 with open('index.css', 'r') as f:
     _INDEX_CSS = f.read()
 
+sync_counts = dict()
 waiting_websockets = dict()  # used as an ordered set
 active_players = dict()
 lock = asyncio.Lock()
@@ -49,8 +51,31 @@ async def index_css(request: Request):
 @app.websocket('/ws')
 async def ws(request: Request, ws: Websocket) -> None:
     try:
+        assert ws not in sync_counts
+        sync_counts[ws] = 0
+        async for message in ws:
+            await handle_message(ws, message, expected_type='client_clock_sync')
+            last_clock_sync = sync_counts[ws] >= 2
+            await ws.send(json.dumps(dict(
+                type='server_clock_sync',
+                data=dict(
+                    server_time=round(time.time_ns() / 1_000_000),  # milliseconds
+                    last_clock_sync=last_clock_sync,
+                ),
+            )))
+            sync_counts[ws] += 1
+            if last_clock_sync:
+                # FIX ME: try-finally
+                del sync_counts[ws]
+                break
+
+        async for message in ws:
+            await handle_message(ws, message, expected_type='client_ready_to_match')
+            break
+
         async with lock:
             if ws in waiting_websockets or ws in active_players:
+                # FIX ME: Is this a bad request or should it raise AssertionError?
                 # FIX ME: Send message to client that request was bad?
                 # Bad request
                 return
@@ -78,17 +103,19 @@ async def ws(request: Request, ws: Websocket) -> None:
                     other_player_ws=ws,
                     player_id=2,
                 )
-                start_time = time.time_ns() // 1_000_000  # milliseconds
+                # 3000: There is a 3 second delay before the game starts, to
+                #       give players a chance to get ready.
+                start_time = round(time.time_ns() / 1_000_000) + 3000  # milliseconds
 
                 await ws.send(json.dumps(dict(
-                    type='server_start',
+                    type='server_matched',
                     data=dict(
                         player_id=active_players[ws]['player_id'],
                         start_time=start_time,
                     ),
                 )))
                 await other_player_ws.send(json.dumps(dict(
-                    type='server_start',
+                    type='server_matched',
                     data=dict(
                         player_id=active_players[other_player_ws]['player_id'],
                         start_time=start_time,
@@ -118,7 +145,7 @@ async def ws(request: Request, ws: Websocket) -> None:
                         del active_players[ws]
 
 
-async def handle_message(ws: Websocket, message) -> None:
+async def handle_message(ws: Websocket, message, expected_type: Optional[str]=None) -> Optional[dict]:
     m = json.loads(message)
 
     if not isinstance(m, dict):
@@ -132,7 +159,14 @@ async def handle_message(ws: Websocket, message) -> None:
         # Bad request
         return
 
+    if expected_type is not None and m_type != expected_type:
+        # FIX ME: Send message to client that request was bad?
+        # Bad request
+        return
+
     match m_type:
+        case 'client_clock_sync':
+            return
         case 'client_update':
             # FIX ME: Only transmit a whitelist of event keys.
             # FIX ME: Refuse to transmit more than a certain number of events
